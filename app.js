@@ -154,6 +154,7 @@ function el(tag, attrs = {}, children = []) {
 }
 
 function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
 // ========== Screens ==========
 let currentScreen = 'inicio';
 
@@ -201,7 +202,6 @@ async function renderInicio(main) {
     return;
   }
 
-  // Próxima manutenção destacada
   const next = maintenances
     .map(m => ({ m, s: getStatus(m, km) }))
     .filter(x => x.s.status !== 'ok')
@@ -222,7 +222,6 @@ async function renderInicio(main) {
   nextCard.appendChild(el('button', { className: 'primary', text: 'Adicionar manutenção', onclick: () => showScreen('add') }));
   main.appendChild(nextCard);
 
-  // Ações rápidas
   const actions = el('div', { className: 'quick-actions' });
   const qa = [
     { icon: '➕', label: 'Adicionar', screen: 'add' },
@@ -238,7 +237,6 @@ async function renderInicio(main) {
   });
   main.appendChild(actions);
 
-  // Resumo
   const last = maintenances[0];
   const summary = el('div', { className: 'card' });
   summary.appendChild(el('h2', { text: 'Resumo' }));
@@ -252,106 +250,195 @@ function getGreeting() {
   if (h < 12) return 'Bom dia!';
   if (h < 18) return 'Boa tarde!';
   return 'Boa noite!';
-  }
-// ========== Screens ==========
-let currentScreen = 'inicio';
+}// ========== Histórico ==========
+async function renderHistorico(main) {
+  const list = await getMaintenances();
+  window._all = list;
 
-function setActiveNav(screen) {
-  document.querySelectorAll('#bottom-nav button').forEach(b => {
-    b.classList.toggle('active', b.dataset.screen === screen);
-  });
+  const filters = el('div', { className: 'filters' });
+  const catSel = el('select', { id: 'f-cat' });
+  catSel.appendChild(el('option', { value: '', text: 'Todas categorias' }));
+  CATEGORIES.forEach(c => catSel.appendChild(el('option', { value: c, text: c })));
+  filters.appendChild(catSel);
+  filters.appendChild(el('input', { id: 'f-oil', placeholder: 'Marca do óleo' }));
+  const viscSel = el('select', { id: 'f-visc' });
+  viscSel.appendChild(el('option', { value: '', text: 'Viscosidade' }));
+  VISCOSITIES.forEach(v => viscSel.appendChild(el('option', { value: v, text: v })));
+  filters.appendChild(viscSel);
+  filters.appendChild(el('button', { className: 'secondary', text: 'Filtrar', onclick: applyFilters }));
+  main.appendChild(filters);
+
+  const listDiv = el('div', { id: 'h-list' });
+  main.appendChild(listDiv);
+  renderList(list);
+
+  main.appendChild(el('button', { className: 'primary', text: 'Exportar PDF', onclick: exportPDF }));
 }
 
-async function showScreen(screen) {
-  currentScreen = screen;
-  setActiveNav(screen);
-  const main = document.getElementById('app');
-  clear(main);
-
-  if (screen === 'inicio') await renderInicio(main);
-  else if (screen === 'historico') await renderHistorico(main);
-  else if (screen === 'veiculos') await renderVeiculos(main);
-  else if (screen === 'lembretes') await renderLembretes(main);
-  else if (screen === 'mais') await renderMais(main);
-  else if (screen === 'add' || screen === 'edit') await renderForm(main, screen === 'edit' ? window._editId : null);
-}
-
-// ========== Início ==========
-async function renderInicio(main) {
-  const vehicle = await getVehicle();
-  const maintenances = await getMaintenances();
-  const km = vehicle?.quilometragemAtual || 0;
-
-  const header = document.getElementById('app-header');
-  clear(header);
-  header.appendChild(el('div', { className: 'greeting', text: getGreeting() }));
-  if (vehicle) {
-    header.appendChild(el('div', { className: 'vehicle-info', text: `${vehicle.marca || ''} ${vehicle.modelo || ''} ${vehicle.ano || ''}`.trim() || 'Veículo' }));
-    header.appendChild(el('div', { className: 'vehicle-info', text: `Km atual: ${(km).toLocaleString('pt-BR')}` }));
-  } else {
-    header.appendChild(el('div', { className: 'vehicle-info', text: 'Nenhum veículo cadastrado' }));
-  }
-
-  if (!vehicle) {
-    main.appendChild(el('div', { className: 'card empty-state' }, [
-      el('p', { text: 'Cadastre seu primeiro veículo para começar.' }),
-      el('button', { className: 'primary', text: 'Cadastrar veículo', onclick: () => showScreen('veiculos') })
-    ]));
+function renderList(list) {
+  const container = document.getElementById('h-list');
+  clear(container);
+  if (!list.length) {
+    container.appendChild(el('div', { className: 'empty-state', text: 'Nenhum registro.' }));
     return;
   }
-
-  // Próxima manutenção destacada
-  const next = maintenances
-    .map(m => ({ m, s: getStatus(m, km) }))
-    .filter(x => x.s.status !== 'ok')
-    .sort((a, b) => (a.s.status === 'overdue' ? -1 : 1))[0];
-
-  const nextCard = el('div', { className: 'card next-card' });
-  nextCard.appendChild(el('h2', { text: 'Próxima manutenção' }));
-  if (next) {
-    const s = next.s;
-    nextCard.appendChild(el('div', {}, [
-      el('strong', { text: next.m.categoria }),
-      el('span', { className: `status ${s.status}`, text: s.status === 'overdue' ? ' Vencida' : ' Próxima' })
-    ]));
-    nextCard.appendChild(el('p', { text: `${s.reason || ''} • ${formatDate(next.m.proximaData)} / ${next.m.proximaQuilometragem?.toLocaleString('pt-BR') || '—'} km` }));
-  } else {
-    nextCard.appendChild(el('p', { text: 'Nenhuma manutenção próxima ou vencida.' }));
-  }
-  nextCard.appendChild(el('button', { className: 'primary', text: 'Adicionar manutenção', onclick: () => showScreen('add') }));
-  main.appendChild(nextCard);
-
-  // Ações rápidas
-  const actions = el('div', { className: 'quick-actions' });
-  const qa = [
-    { icon: '➕', label: 'Adicionar', screen: 'add' },
-    { icon: '📋', label: 'Histórico', screen: 'historico' },
-    { icon: '🔢', label: 'Atualizar km', screen: 'veiculos' },
-    { icon: '🔔', label: 'Lembretes', screen: 'lembretes' }
-  ];
-  qa.forEach(a => {
-    const btn = el('button', { className: 'quick-action', onclick: () => showScreen(a.screen) });
-    btn.appendChild(el('div', { className: 'circle', text: a.icon }));
-    btn.appendChild(el('span', { text: a.label }));
-    actions.appendChild(btn);
+  const card = el('div', { className: 'card' });
+  list.forEach(m => {
+    const item = el('div', { className: 'maintenance-item' });
+    item.appendChild(el('strong', { text: m.categoria }));
+    item.appendChild(el('div', { text: `${formatDate(m.data)} • ${m.quilometragem?.toLocaleString('pt-BR') || '—'} km` }));
+    if (m.oil?.marca) item.appendChild(el('div', { text: `Óleo: ${m.oil.marca} \( {m.oil.viscosidade || ''} ( \){m.oil.tipo || ''})` }));
+    const actions = el('div');
+    actions.appendChild(el('button', { className: 'secondary', text: 'Editar', onclick: () => { window._editId = m.id; showScreen('edit'); } }));
+    actions.appendChild(el('button', { className: 'danger', text: 'Excluir', onclick: () => confirmDelete(m.id) }));
+    item.appendChild(actions);
+    card.appendChild(item);
   });
-  main.appendChild(actions);
-
-  // Resumo
-  const last = maintenances[0];
-  const summary = el('div', { className: 'card' });
-  summary.appendChild(el('h2', { text: 'Resumo' }));
-  summary.appendChild(el('p', { text: `Manutenções registradas: ${maintenances.length}` }));
-  if (last) summary.appendChild(el('p', { text: `Última: ${last.categoria} em ${formatDate(last.data)}` }));
-  main.appendChild(summary);
+  container.appendChild(card);
 }
 
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h < 12) return 'Bom dia!';
-  if (h < 18) return 'Boa tarde!';
-  return 'Boa noite!';
+function applyFilters() {
+  const cat = document.getElementById('f-cat').value;
+  const oil = (document.getElementById('f-oil').value || '').toLowerCase();
+  const visc = document.getElementById('f-visc').value;
+  let f = window._all || [];
+  if (cat) f = f.filter(m => m.categoria === cat);
+  if (oil) f = f.filter(m => (m.oil?.marca || '').toLowerCase().includes(oil));
+  if (visc) f = f.filter(m => m.oil?.viscosidade === visc);
+  renderList(f);
 }
+
+async function confirmDelete(id) {
+  if (confirm('Excluir este registro?')) {
+    await deleteMaintenance(id);
+    showScreen('historico');
+  }
+}
+
+// ========== Veículos ==========
+async function renderVeiculos(main) {
+  const v = await getVehicle() || {};
+  const card = el('div', { className: 'card' });
+  card.appendChild(el('h2', { text: 'Veículo' }));
+
+  const form = el('form');
+  const fields = [
+    ['marca', 'Marca', 'text'],
+    ['modelo', 'Modelo', 'text'],
+    ['ano', 'Ano', 'number'],
+    ['motorizacao', 'Motorização (opcional)', 'text'],
+    ['transmissao', 'Transmissão (opcional)', 'text'],
+    ['quilometragemAtual', 'Quilometragem atual', 'text'],
+    ['observacoes', 'Observações', 'textarea']
+  ];
+  fields.forEach(([name, label, type]) => {
+    form.appendChild(el('label', { text: label }));
+    if (type === 'textarea') {
+      const ta = el('textarea', { name });
+      ta.value = v[name] || '';
+      form.appendChild(ta);
+    } else {
+      const inp = el('input', { name, type });
+      if (name === 'quilometragemAtual') {
+        inp.inputMode = 'numeric';
+        inp.placeholder = 'Ex: 85.000';
+        inp.value = v.quilometragemAtual ? Number(v.quilometragemAtual).toLocaleString('pt-BR') : '';
+        inp.addEventListener('input', () => {
+          let val = inp.value.replace(/\D/g, '');
+          if (val) inp.value = Number(val).toLocaleString('pt-BR');
+        });
+      } else {
+        inp.value = v[name] || '';
+      }
+      form.appendChild(inp);
+    }
+  });
+  form.appendChild(el('button', { type: 'submit', className: 'primary', text: 'Salvar' }));
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(form));
+    data.quilometragemAtual = Number(String(data.quilometragemAtual || '').replace(/\./g, '')) || 0;
+    data.ano = Number(data.ano) || null;
+    data.specs = {
+      oil: {
+        viscosidade: data.spec_oil_visc || '',
+        tipo: data.spec_oil_tipo || '',
+        api: data.spec_oil_api || '',
+        volume: data.spec_oil_vol || '',
+        intervalo: data.spec_oil_int || ''
+      },
+      transmission: {
+        especificacao: data.spec_trans_spec || '',
+        volume: data.spec_trans_vol || ''
+      },
+      tires: {
+        medida: data.spec_tire_medida || '',
+        pressao: data.spec_tire_press || ''
+      },
+      fuel: {
+        tipo: data.spec_fuel_tipo || '',
+        volume: data.spec_fuel_vol || ''
+      },
+      brake: {
+        especificacao: data.spec_brake_spec || '',
+        volume: data.spec_brake_vol || '',
+        intervalo: data.spec_brake_int || ''
+      },
+      filters: {
+        oleo: data.spec_filt_oleo || '',
+        ar: data.spec_filt_ar || '',
+        cabine: data.spec_filt_cabine || ''
+      },
+      wipers: {
+        dianteiras: data.spec_wiper_front || '',
+        traseira: data.spec_wiper_rear || ''
+      }
+    };
+    Object.keys(data).forEach(k => { if (k.startsWith('spec_')) delete data[k]; });
+    await saveVehicle(data);
+    alert('Salvo.');
+    showScreen('inicio');
+  };
+  card.appendChild(form);
+
+  const specs = v.specs || {};
+  const specsSection = el('div', { className: 'specs-section' });
+  specsSection.appendChild(el('h3', { text: 'Especificações técnicas' }));
+
+  const specFields = [
+    ['spec_oil_visc', 'Óleo motor - Viscosidade', specs.oil?.viscosidade || '10W-40'],
+    ['spec_oil_tipo', 'Óleo motor - Tipo', specs.oil?.tipo || 'Semissintético'],
+    ['spec_oil_api', 'Óleo motor - API', specs.oil?.api || 'SN'],
+    ['spec_oil_vol', 'Óleo motor - Volume', specs.oil?.volume || '4,2 litros'],
+    ['spec_oil_int', 'Óleo motor - Intervalo', specs.oil?.intervalo || '7.000 a 10.000 km'],
+    ['spec_trans_spec', 'Câmbio - Especificação', specs.transmission?.especificacao || 'ATF padrão JWS 3309 (ex: Mobil ATF 3309)'],
+    ['spec_trans_vol', 'Câmbio - Volume parcial', specs.transmission?.volume || '4,5 litros'],
+    ['spec_tire_medida', 'Pneus - Medida', specs.tires?.medida || '225/65 R17'],
+    ['spec_tire_press', 'Pneus - Pressão', specs.tires?.pressao || ''],
+    ['spec_fuel_tipo', 'Combustível - Tipo', specs.fuel?.tipo || 'Gasolina'],
+    ['spec_fuel_vol', 'Combustível - Volume tanque', specs.fuel?.volume || '66 litros'],
+    ['spec_brake_spec', 'Fluido freio - Especificação', specs.brake?.especificacao || 'DOT 4'],
+    ['spec_brake_vol', 'Fluido freio - Volume', specs.brake?.volume || '1 litro'],
+    ['spec_brake_int', 'Fluido freio - Intervalo', specs.brake?.intervalo || '20.000 km ou 24 meses'],
+    ['spec_filt_oleo', 'Filtro óleo', specs.filters?.oleo || 'Mann W 68/80 (equiv. Tecfil PSL134)'],
+    ['spec_filt_ar', 'Filtro ar', specs.filters?.ar || 'Tecfil ARL8824 (equiv. Mahle LX2612)'],
+    ['spec_filt_cabine', 'Filtro cabine', specs.filters?.cabine || 'Wega AKX1971'],
+    ['spec_wiper_front', 'Palhetas dianteiras', specs.wipers?.dianteiras || '19 polegadas, encaixe gancho'],
+    ['spec_wiper_rear', 'Palheta traseira', specs.wipers?.traseira || '12 polegadas, encaixe Quick-Clip']
+  ];
+
+  specFields.forEach(([name, label, defaultVal]) => {
+    specsSection.appendChild(el('label', { text: label }));
+    const inp = el('input', { name, type: 'text' });
+    inp.value = defaultVal;
+    specsSection.appendChild(inp);
+  });
+
+  form.appendChild(specsSection);
+  main.appendChild(card);
+  main.appendChild(el('button', { className: 'secondary', text: 'Carregar dados de exemplo', onclick: loadDemo }));
+}
+
 async function loadDemo() {
   if (!confirm('Isso adicionará dados de demonstração. Continuar?')) return;
   await saveVehicle({
@@ -414,7 +501,6 @@ async function renderMais(main) {
   card.appendChild(el('button', { className: 'secondary', text: 'Restaurar', onclick: restoreBackup }));
   card.appendChild(el('p', { text: 'A restauração substitui os dados atuais após validação.' }));
   main.appendChild(card);
-
   main.appendChild(el('button', { className: 'primary', text: 'Exportar PDF do histórico', onclick: exportPDF }));
 }
 
@@ -449,8 +535,7 @@ async function restoreBackup() {
   } catch (err) {
     alert('Arquivo inválido. Dados atuais não foram alterados.');
   }
-}
-// ========== Form Manutenção ==========
+}// ========== Form Manutenção ==========
 async function renderForm(main, editId) {
   let m = {};
   if (editId) {
@@ -472,7 +557,6 @@ async function renderForm(main, editId) {
   });
   form.appendChild(cat);
 
-  // Reference banner
   const banner = el('div', { id: 'ref-banner', className: 'ref-banner', style: 'display:none' });
   form.appendChild(banner);
 
@@ -524,7 +608,6 @@ async function renderForm(main, editId) {
   });
   form.appendChild(pk);
 
-  // Oil fields
   const oilDiv = el('div', { id: 'oil-fields', style: 'display:none' });
   oilDiv.appendChild(el('h3', { text: 'Detalhes do óleo' }));
   oilDiv.appendChild(el('label', { text: 'Marca' }));
@@ -572,6 +655,7 @@ async function renderForm(main, editId) {
   oilDiv.appendChild(acea);
 
   form.appendChild(oilDiv);
+
   const toggleOil = () => {
     const c = cat.value || '';
     oilDiv.style.display = c.toLowerCase().includes('óleo') || c.toLowerCase().includes('oleo') ? 'block' : 'none';
