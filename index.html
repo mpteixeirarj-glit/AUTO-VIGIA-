@@ -4,20 +4,21 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Auto-Vigia</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#1a73e8">
+  <meta name="theme-color" content="#00e5ff">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Auto-Vigia">
 </head>
 <body>
-  <header>
-    <h1>Auto-Vigia</h1>
-    <p class="slogan">Seu copiloto na manutenção</p>
-    <p class="version">v0.3</p>
+  <header id="main-header">
+    <span class="header-title">⚙ AUTO-VIGIA</span>
+    <span class="header-clock" id="vigia-clock"></span>
   </header>
-  <div id="app-header"></div>
   <main id="app"></main>
   <nav id="bottom-nav">
     <button data-screen="inicio" class="active">
@@ -43,5 +44,16 @@
   </nav>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="app.js"></script>
+  <script>
+    function updateClock() {
+      const now = new Date();
+      const d = now.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+      const t = now.toLocaleTimeString('pt-BR');
+      const el = document.getElementById('vigia-clock');
+      if (el) el.textContent = d + ' ' + t;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+  </script>
 </body>
 </html>

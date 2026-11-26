@@ -1,5 +1,5 @@
-// Auto-Vigia v0.3.1
-// IndexedDB | PWA | Correções: OIL_TYPES, onchange único, remoção de apelido
+// Auto-Vigia v0.4 — Vigia Energy Design System
+// IndexedDB | PWA | Pixel Art UI
 
 const DB_NAME = 'AutoVigiaDB';
 const DB_VERSION = 1;
@@ -23,6 +23,7 @@ const CATEGORIES = [
 
 const VISCOSITIES = ['0W-20', '5W-30', '10W-30', '10W-40', '15W-40', 'Outro'];
 const OIL_TYPES = ['Sintético', 'Semissintético', 'Mineral', 'Outro / não informado'];
+
 const REF_BANNERS = {
   'Troca de óleo do motor': '💡 Recomendado: 10W-40 Semissintético API SN • 4,2 L • trocar a cada 7.000–10.000 km',
   'Troca de óleo da transmissão/câmbio': '💡 Recomendado: ATF padrão JWS 3309 (Mobil ATF 3309) • 4,5 L (troca parcial)',
@@ -31,6 +32,19 @@ const REF_BANNERS = {
   'Pastilhas de freio': '💡 Dianteira: Fras-le PD/1077 (equiv. Cobreq N-1399) | Traseira: Fras-le PD/585 (equiv. SYL 3178)',
   'Sistema de arrefecimento': '💡 Fluido de freio: DOT 4 • 1 litro por sangria • trocar a cada 20.000 km ou 24 meses'
 };
+
+// Mapeamento: categoria → imagem da seção
+const IMAGE_MAP = {
+  'Troca de óleo do motor':              'img/gv-motor.jpg',
+  'Troca de óleo da transmissão/câmbio': 'img/gv-motor.jpg',
+  'Filtros':                             'img/gv-frontal.jpg',
+  'Pneus':                               'img/gv-traseira-estepe.jpg',
+  'Pastilhas de freio':                  'img/gv-traseira-pixel.jpg',
+  'Discos de freio':                     'img/gv-traseira-pixel.jpg',
+  'Sistema de arrefecimento':            'img/gv-traseira-pixel.jpg',
+  'Lembretes':                           'img/gv-34.jpg'
+};
+const IMAGE_DEFAULT = 'img/gv-34.jpg';
 
 // ========== IndexedDB ==========
 function openDB() {
@@ -96,7 +110,7 @@ function deleteMaintenance(id) {
   });
 }
 
-// ========== Date helpers (timezone-safe calendar dates) ==========
+// ========== Date helpers ==========
 function parseDate(str) {
   if (!str) return null;
   const [y, m, d] = str.split('-').map(Number);
@@ -118,7 +132,7 @@ function daysUntil(dateStr) {
   return Math.round((d - today) / 86400000);
 }
 
-// ========== Status based only on user-provided next values ==========
+// ========== Status ==========
 function getStatus(m, currentKm) {
   let status = 'ok';
   let reason = '';
@@ -127,7 +141,7 @@ function getStatus(m, currentKm) {
     const days = daysUntil(m.proximaData);
     if (days !== null) {
       if (days < 0) { status = 'overdue'; reason = 'Data vencida'; }
-      else if (days <= 30) { status = 'near'; reason = `\( {days} dia \){days !== 1 ? 's' : ''}`; }
+      else if (days <= 30) { status = 'near'; reason = `${days} dia${days !== 1 ? 's' : ''}`; }
     }
   }
 
@@ -140,7 +154,7 @@ function getStatus(m, currentKm) {
   return { status, reason };
 }
 
-// ========== Safe DOM helpers ==========
+// ========== DOM helpers ==========
 function el(tag, attrs = {}, children = []) {
   const e = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
@@ -170,11 +184,12 @@ async function showScreen(screen) {
   const main = document.getElementById('app');
   clear(main);
 
-  if (screen === 'inicio') await renderInicio(main);
-  else if (screen === 'historico') await renderHistorico(main);
-  else if (screen === 'veiculos') await renderVeiculos(main);
-  else if (screen === 'lembretes') await renderLembretes(main);
-  else if (screen === 'mais') await renderMais(main);
+  if (screen === 'inicio')    await renderInicio(main);
+  else if (screen === 'historico')  await renderHistorico(main);
+  else if (screen === 'veiculos')   await renderVeiculos(main);
+  else if (screen === 'lembretes')  await renderLembretes(main);
+  else if (screen === 'mais')       await renderMais(main);
+  else if (screen === 'sobre')      await renderSobre(main);
   else if (screen === 'add' || screen === 'edit') await renderForm(main, screen === 'edit' ? window._editId : null);
 }
 
@@ -184,19 +199,25 @@ async function renderInicio(main) {
   const maintenances = await getMaintenances();
   const km = vehicle?.quilometragemAtual || 0;
 
-  const header = document.getElementById('app-header');
-  clear(header);
-  header.appendChild(el('div', { className: 'greeting', text: getGreeting() }));
+  // Ilustração lateral na home
+  const homeArt = el('div', { className: 'home-art-wrap' });
+  homeArt.appendChild(el('img', { src: 'img/gv-lateral.jpg', className: 'home-art', alt: 'Grand Vitara' }));
+  main.appendChild(homeArt);
+
+  // Info do veículo
+  const infoDiv = el('div', { className: 'vehicle-header-info' });
+  infoDiv.appendChild(el('div', { className: 'greeting', text: getGreeting() }));
   if (vehicle) {
-    header.appendChild(el('div', { className: 'vehicle-info', text: `${vehicle.marca || ''} ${vehicle.modelo || ''} ${vehicle.ano || ''}`.trim() || 'Veículo' }));
-    header.appendChild(el('div', { className: 'vehicle-info', text: `Km atual: ${(km).toLocaleString('pt-BR')}` }));
+    infoDiv.appendChild(el('div', { className: 'vehicle-info', text: `${vehicle.marca || ''} ${vehicle.modelo || ''} ${vehicle.ano || ''}`.trim() || 'Veículo' }));
+    infoDiv.appendChild(el('div', { className: 'vehicle-info', text: `KM ATUAL: ${km.toLocaleString('pt-BR')}` }));
   } else {
-    header.appendChild(el('div', { className: 'vehicle-info', text: 'Nenhum veículo cadastrado' }));
+    infoDiv.appendChild(el('div', { className: 'vehicle-info', text: 'Nenhum veículo cadastrado' }));
   }
+  main.appendChild(infoDiv);
 
   if (!vehicle) {
     main.appendChild(el('div', { className: 'card empty-state' }, [
-      el('p', { text: 'Cadastre seu primeiro veículo para começar.' }),
+      el('p', { text: 'Cadastre seu veículo para começar.' }),
       el('button', { className: 'primary', text: 'Cadastrar veículo', onclick: () => showScreen('veiculos') })
     ]));
     return;
@@ -208,18 +229,18 @@ async function renderInicio(main) {
     .sort((a, b) => (a.s.status === 'overdue' ? -1 : 1))[0];
 
   const nextCard = el('div', { className: 'card next-card' });
-  nextCard.appendChild(el('h2', { text: 'Próxima manutenção' }));
+  nextCard.appendChild(el('h2', { text: '▶ Próxima manutenção' }));
   if (next) {
     const s = next.s;
-    nextCard.appendChild(el('div', {}, [
-      el('strong', { text: next.m.categoria }),
-      el('span', { className: `status ${s.status}`, text: s.status === 'overdue' ? ' Vencida' : ' Próxima' })
-    ]));
-    nextCard.appendChild(el('p', { text: `${s.reason || ''} • ${formatDate(next.m.proximaData)} / ${next.m.proximaQuilometragem?.toLocaleString('pt-BR') || '—'} km` }));
+    const row = el('div', { style: 'display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px' });
+    row.appendChild(el('strong', { text: next.m.categoria, style: 'font-size:8px' }));
+    row.appendChild(el('span', { className: `status ${s.status}`, text: s.status === 'overdue' ? 'VENCIDA' : 'PRÓXIMA' }));
+    nextCard.appendChild(row);
+    nextCard.appendChild(el('p', { text: `${s.reason || ''} • ${formatDate(next.m.proximaData)} / ${next.m.proximaQuilometragem?.toLocaleString('pt-BR') || '—'} km`, style: 'font-size:7px;color:var(--text-muted)' }));
   } else {
-    nextCard.appendChild(el('p', { text: 'Nenhuma manutenção próxima ou vencida.' }));
+    nextCard.appendChild(el('p', { text: 'Nenhuma manutenção próxima ou vencida.', style: 'font-size:8px;color:var(--text-muted)' }));
   }
-  nextCard.appendChild(el('button', { className: 'primary', text: 'Adicionar manutenção', onclick: () => showScreen('add') }));
+  nextCard.appendChild(el('button', { className: 'primary', text: '+ Adicionar manutenção', onclick: () => showScreen('add') }));
   main.appendChild(nextCard);
 
   const actions = el('div', { className: 'quick-actions' });
@@ -237,20 +258,24 @@ async function renderInicio(main) {
   });
   main.appendChild(actions);
 
-  const last = maintenances[0];
   const summary = el('div', { className: 'card' });
-  summary.appendChild(el('h2', { text: 'Resumo' }));
-  summary.appendChild(el('p', { text: `Manutenções registradas: ${maintenances.length}` }));
-  if (last) summary.appendChild(el('p', { text: `Última: ${last.categoria} em ${formatDate(last.data)}` }));
+  summary.appendChild(el('h2', { text: '▶ Resumo' }));
+  summary.appendChild(el('p', { text: `Registros: ${maintenances.length}`, style: 'font-size:8px;margin-bottom:6px' }));
+  if (maintenances[0]) {
+    summary.appendChild(el('p', { text: `Última: ${maintenances[0].categoria}`, style: 'font-size:7px;color:var(--text-muted)' }));
+    summary.appendChild(el('p', { text: `Em: ${formatDate(maintenances[0].data)}`, style: 'font-size:7px;color:var(--text-muted)' }));
+  }
   main.appendChild(summary);
 }
 
 function getGreeting() {
   const h = new Date().getHours();
-  if (h < 12) return 'Bom dia!';
-  if (h < 18) return 'Boa tarde!';
-  return 'Boa noite!';
-}// ========== Histórico ==========
+  if (h < 12) return 'BOM DIA!';
+  if (h < 18) return 'BOA TARDE!';
+  return 'BOA NOITE!';
+}
+
+// ========== Histórico ==========
 async function renderHistorico(main) {
   const list = await getMaintenances();
   window._all = list;
@@ -287,11 +312,17 @@ function renderList(list) {
     const item = el('div', { className: 'maintenance-item' });
     item.appendChild(el('strong', { text: m.categoria }));
     item.appendChild(el('div', { text: `${formatDate(m.data)} • ${m.quilometragem?.toLocaleString('pt-BR') || '—'} km` }));
-    if (m.oil?.marca) item.appendChild(el('div', { text: `Óleo: ${m.oil.marca} \( {m.oil.viscosidade || ''} ( \){m.oil.tipo || ''})` }));
-    const actions = el('div');
-    actions.appendChild(el('button', { className: 'secondary', text: 'Editar', onclick: () => { window._editId = m.id; showScreen('edit'); } }));
-    actions.appendChild(el('button', { className: 'danger', text: 'Excluir', onclick: () => confirmDelete(m.id) }));
-    item.appendChild(actions);
+    if (m.oil?.marca) item.appendChild(el('div', { text: `Óleo: ${m.oil.marca} ${m.oil.viscosidade || ''} (${m.oil.tipo || ''})` }));
+    const actionsDiv = el('div', { style: 'display:flex;gap:8px;margin-top:4px' });
+    const editBtn = el('button', { className: 'secondary', text: 'Editar', onclick: () => { window._editId = m.id; showScreen('edit'); } });
+    editBtn.style.width = 'auto';
+    editBtn.style.padding = '6px 10px';
+    const delBtn = el('button', { className: 'danger', text: 'Excluir', onclick: () => confirmDelete(m.id) });
+    delBtn.style.width = 'auto';
+    delBtn.style.padding = '6px 10px';
+    actionsDiv.appendChild(editBtn);
+    actionsDiv.appendChild(delBtn);
+    item.appendChild(actionsDiv);
     card.appendChild(item);
   });
   container.appendChild(card);
@@ -319,7 +350,7 @@ async function confirmDelete(id) {
 async function renderVeiculos(main) {
   const v = await getVehicle() || {};
   const card = el('div', { className: 'card' });
-  card.appendChild(el('h2', { text: 'Veículo' }));
+  card.appendChild(el('h2', { text: '▶ Veículo' }));
 
   const form = el('form');
   const fields = [
@@ -354,6 +385,7 @@ async function renderVeiculos(main) {
     }
   });
   form.appendChild(el('button', { type: 'submit', className: 'primary', text: 'Salvar' }));
+
   form.onsubmit = async (e) => {
     e.preventDefault();
     const data = Object.fromEntries(new FormData(form));
@@ -399,6 +431,7 @@ async function renderVeiculos(main) {
     alert('Salvo.');
     showScreen('inicio');
   };
+
   card.appendChild(form);
 
   const specs = v.specs || {};
@@ -406,25 +439,25 @@ async function renderVeiculos(main) {
   specsSection.appendChild(el('h3', { text: 'Especificações técnicas' }));
 
   const specFields = [
-    ['spec_oil_visc', 'Óleo motor - Viscosidade', specs.oil?.viscosidade || '10W-40'],
-    ['spec_oil_tipo', 'Óleo motor - Tipo', specs.oil?.tipo || 'Semissintético'],
-    ['spec_oil_api', 'Óleo motor - API', specs.oil?.api || 'SN'],
-    ['spec_oil_vol', 'Óleo motor - Volume', specs.oil?.volume || '4,2 litros'],
-    ['spec_oil_int', 'Óleo motor - Intervalo', specs.oil?.intervalo || '7.000 a 10.000 km'],
-    ['spec_trans_spec', 'Câmbio - Especificação', specs.transmission?.especificacao || 'ATF padrão JWS 3309 (ex: Mobil ATF 3309)'],
-    ['spec_trans_vol', 'Câmbio - Volume parcial', specs.transmission?.volume || '4,5 litros'],
-    ['spec_tire_medida', 'Pneus - Medida', specs.tires?.medida || '225/65 R17'],
-    ['spec_tire_press', 'Pneus - Pressão', specs.tires?.pressao || ''],
-    ['spec_fuel_tipo', 'Combustível - Tipo', specs.fuel?.tipo || 'Gasolina'],
-    ['spec_fuel_vol', 'Combustível - Volume tanque', specs.fuel?.volume || '66 litros'],
-    ['spec_brake_spec', 'Fluido freio - Especificação', specs.brake?.especificacao || 'DOT 4'],
-    ['spec_brake_vol', 'Fluido freio - Volume', specs.brake?.volume || '1 litro'],
-    ['spec_brake_int', 'Fluido freio - Intervalo', specs.brake?.intervalo || '20.000 km ou 24 meses'],
-    ['spec_filt_oleo', 'Filtro óleo', specs.filters?.oleo || 'Mann W 68/80 (equiv. Tecfil PSL134)'],
-    ['spec_filt_ar', 'Filtro ar', specs.filters?.ar || 'Tecfil ARL8824 (equiv. Mahle LX2612)'],
-    ['spec_filt_cabine', 'Filtro cabine', specs.filters?.cabine || 'Wega AKX1971'],
-    ['spec_wiper_front', 'Palhetas dianteiras', specs.wipers?.dianteiras || '19 polegadas, encaixe gancho'],
-    ['spec_wiper_rear', 'Palheta traseira', specs.wipers?.traseira || '12 polegadas, encaixe Quick-Clip']
+    ['spec_oil_visc',    'Óleo motor - Viscosidade',    specs.oil?.viscosidade   || '10W-40'],
+    ['spec_oil_tipo',    'Óleo motor - Tipo',           specs.oil?.tipo          || 'Semissintético'],
+    ['spec_oil_api',     'Óleo motor - API',            specs.oil?.api           || 'SN'],
+    ['spec_oil_vol',     'Óleo motor - Volume',         specs.oil?.volume        || '4,2 litros'],
+    ['spec_oil_int',     'Óleo motor - Intervalo',      specs.oil?.intervalo     || '7.000 a 10.000 km'],
+    ['spec_trans_spec',  'Câmbio - Especificação',      specs.transmission?.especificacao || 'ATF padrão JWS 3309 (ex: Mobil ATF 3309)'],
+    ['spec_trans_vol',   'Câmbio - Volume parcial',     specs.transmission?.volume || '4,5 litros'],
+    ['spec_tire_medida', 'Pneus - Medida',              specs.tires?.medida      || '225/65 R17'],
+    ['spec_tire_press',  'Pneus - Pressão',             specs.tires?.pressao     || ''],
+    ['spec_fuel_tipo',   'Combustível - Tipo',          specs.fuel?.tipo         || 'Gasolina'],
+    ['spec_fuel_vol',    'Combustível - Volume tanque', specs.fuel?.volume       || '66 litros'],
+    ['spec_brake_spec',  'Fluido freio - Especificação',specs.brake?.especificacao || 'DOT 4'],
+    ['spec_brake_vol',   'Fluido freio - Volume',       specs.brake?.volume      || '1 litro'],
+    ['spec_brake_int',   'Fluido freio - Intervalo',    specs.brake?.intervalo   || '20.000 km ou 24 meses'],
+    ['spec_filt_oleo',   'Filtro óleo',                 specs.filters?.oleo      || 'Mann W 68/80 (equiv. Tecfil PSL134)'],
+    ['spec_filt_ar',     'Filtro ar',                   specs.filters?.ar        || 'Tecfil ARL8824 (equiv. Mahle LX2612)'],
+    ['spec_filt_cabine', 'Filtro cabine',               specs.filters?.cabine    || 'Wega AKX1971'],
+    ['spec_wiper_front', 'Palhetas dianteiras',         specs.wipers?.dianteiras || '19 polegadas, encaixe gancho'],
+    ['spec_wiper_rear',  'Palheta traseira',            specs.wipers?.traseira   || '12 polegadas, encaixe Quick-Clip']
   ];
 
   specFields.forEach(([name, label, defaultVal]) => {
@@ -458,7 +491,7 @@ async function loadDemo() {
     oil: { marca: 'Mobil', viscosidade: '5W-30', tipo: 'Sintético', classificacaoAPI: 'SP' },
     observacoes: 'DEMO'
   });
-  alert('Exemplos carregados (identificados como DEMO).');
+  alert('Exemplos carregados.');
   showScreen('inicio');
 }
 
@@ -468,20 +501,25 @@ async function renderLembretes(main) {
   const list = await getMaintenances();
   const km = vehicle?.quilometragemAtual || 0;
 
+  // Ilustração 3/4 no topo dos lembretes
+  const artWrap = el('div', { className: 'section-art-wrap', style: 'display:block' });
+  artWrap.appendChild(el('img', { src: 'img/gv-34.jpg', className: 'section-art', alt: '' }));
+  main.appendChild(artWrap);
+
   const sorted = list
     .map(m => ({ m, s: getStatus(m, km) }))
     .filter(x => x.s.status !== 'ok')
     .sort((a, b) => (a.s.status === 'overdue' ? -1 : 1));
 
   const card = el('div', { className: 'card' });
-  card.appendChild(el('h2', { text: 'Lembretes' }));
+  card.appendChild(el('h2', { text: '▶ Lembretes' }));
   if (!sorted.length) {
-    card.appendChild(el('p', { text: 'Nenhum lembrete ativo.' }));
+    card.appendChild(el('p', { text: 'Nenhum lembrete ativo.', style: 'font-size:8px;color:var(--text-muted)' }));
   } else {
     sorted.forEach(({ m, s }) => {
       const item = el('div', { className: 'maintenance-item' });
       item.appendChild(el('strong', { text: m.categoria }));
-      item.appendChild(el('span', { className: `status ${s.status}`, text: s.status === 'overdue' ? ' Vencida' : ' Próxima' }));
+      item.appendChild(el('span', { className: `status ${s.status}`, text: s.status === 'overdue' ? 'VENCIDA' : 'PRÓXIMA' }));
       item.appendChild(el('div', { text: `${formatDate(m.proximaData)} / ${m.proximaQuilometragem?.toLocaleString('pt-BR') || '—'} km` }));
       card.appendChild(item);
     });
@@ -489,19 +527,44 @@ async function renderLembretes(main) {
   main.appendChild(card);
 }
 
-// ========== Mais (Backup + PDF) ==========
+// ========== Mais ==========
 async function renderMais(main) {
   const card = el('div', { className: 'card' });
-  card.appendChild(el('h2', { text: 'Backup e dados' }));
-  card.appendChild(el('p', { text: 'Exporte um arquivo JSON. Guarde em local seguro.' }));
+  card.appendChild(el('h2', { text: '▶ Mais opções' }));
+
+  const items = [
+    { icon: '💾', label: 'Backup e dados', action: () => renderBackupPanel(main) },
+    { icon: '📄', label: 'Exportar PDF', action: exportPDF },
+    { icon: 'ℹ️', label: 'Sobre o app', action: () => showScreen('sobre') }
+  ];
+
+  items.forEach(item => {
+    const btn = el('button', { className: 'mais-item', onclick: item.action });
+    btn.appendChild(el('span', { className: 'mais-icon', text: item.icon }));
+    btn.appendChild(el('span', { text: item.label }));
+    card.appendChild(btn);
+  });
+
+  main.appendChild(card);
+}
+
+function renderBackupPanel(main) {
+  clear(main);
+  const card = el('div', { className: 'card' });
+  card.appendChild(el('h2', { text: '▶ Backup e dados' }));
+  card.appendChild(el('p', { text: 'Exporte um arquivo JSON. Guarde em local seguro.', style: 'font-size:7px;color:var(--text-muted);margin-bottom:8px;line-height:2' }));
   card.appendChild(el('button', { className: 'primary', text: 'Exportar backup', onclick: exportBackup }));
   card.appendChild(el('label', { text: 'Restaurar backup' }));
-  const file = el('input', { type: 'file', id: 'restore-file', accept: '.json' });
-  card.appendChild(file);
+  const fileInput = el('input', { type: 'file', id: 'restore-file', accept: '.json' });
+  card.appendChild(fileInput);
   card.appendChild(el('button', { className: 'secondary', text: 'Restaurar', onclick: restoreBackup }));
-  card.appendChild(el('p', { text: 'A restauração substitui os dados atuais após validação.' }));
+  card.appendChild(el('p', { text: 'A restauração substitui os dados atuais após validação.', style: 'font-size:7px;color:var(--text-muted);margin-top:8px;line-height:2' }));
+
+  const backBtn = el('button', { className: 'secondary', text: '← Voltar', onclick: () => showScreen('mais') });
+  backBtn.style.marginTop = '10px';
+
   main.appendChild(card);
-  main.appendChild(el('button', { className: 'primary', text: 'Exportar PDF do histórico', onclick: exportPDF }));
+  main.appendChild(backBtn);
 }
 
 async function exportBackup() {
@@ -523,7 +586,6 @@ async function restoreBackup() {
     const data = JSON.parse(text);
     if (!data.version || !data.maintenances) throw new Error('Formato inválido');
     if (!confirm('Isso substituirá todos os dados atuais. Continuar?')) return;
-
     if (data.vehicle) await saveVehicle(data.vehicle);
     const tx = db.transaction('maintenances', 'readwrite');
     const store = tx.objectStore('maintenances');
@@ -535,7 +597,47 @@ async function restoreBackup() {
   } catch (err) {
     alert('Arquivo inválido. Dados atuais não foram alterados.');
   }
-}// ========== Form Manutenção ==========
+}
+
+// ========== Sobre ==========
+async function renderSobre(main) {
+  const card = el('div', { className: 'card' });
+  card.appendChild(el('h2', { text: '▶ Sobre' }));
+
+  const logoWrap = el('div', { className: 'sobre-logo' });
+  logoWrap.appendChild(el('img', { src: 'img/gv-34.jpg', alt: 'Grand Vitara' }));
+  card.appendChild(logoWrap);
+
+  card.appendChild(el('div', { className: 'sobre-title', text: 'AUTO-VIGIA' }));
+  card.appendChild(el('div', { className: 'sobre-version', text: 'v1.0.0 • NOV/2026' }));
+  card.appendChild(el('div', { className: 'sobre-desc', text: 'Controle de manutenção para o seu Grand Vitara 2009' }));
+
+  card.appendChild(el('hr', { className: 'sobre-sep' }));
+
+  card.appendChild(el('div', { className: 'sobre-eco-title', text: 'Ecossistema Vigia:' }));
+
+  const eco = [
+    { label: 'Vigia Financeiro', active: false },
+    { label: 'Vigia Energy', active: false },
+    { label: 'Vigia Auto', active: true }
+  ];
+  eco.forEach(item => {
+    card.appendChild(el('div', {
+      className: `sobre-eco-item${item.active ? ' active' : ''}`,
+      text: item.label
+    }));
+  });
+
+  card.appendChild(el('div', { className: 'sobre-footer', text: 'Desenvolvido por Marcos\nRio de Janeiro' }));
+
+  const backBtn = el('button', { className: 'secondary', text: '← Voltar', onclick: () => showScreen('mais') });
+  backBtn.style.marginTop = '10px';
+
+  main.appendChild(card);
+  main.appendChild(backBtn);
+}
+
+// ========== Form Manutenção ==========
 async function renderForm(main, editId) {
   let m = {};
   if (editId) {
@@ -544,7 +646,13 @@ async function renderForm(main, editId) {
   }
 
   const card = el('div', { className: 'card' });
-  card.appendChild(el('h2', { text: editId ? 'Editar manutenção' : 'Nova manutenção' }));
+  card.appendChild(el('h2', { text: editId ? '▶ Editar manutenção' : '▶ Nova manutenção' }));
+
+  // Wrapper para a ilustração contextual
+  const artWrap = el('div', { className: 'section-art-wrap' });
+  const artImg = el('img', { className: 'section-art', alt: '' });
+  artWrap.appendChild(artImg);
+  card.appendChild(artWrap);
 
   const form = el('form');
   form.appendChild(el('label', { text: 'Tipo' }));
@@ -557,17 +665,19 @@ async function renderForm(main, editId) {
   });
   form.appendChild(cat);
 
-  const banner = el('div', { id: 'ref-banner', className: 'ref-banner', style: 'display:none' });
+  const banner = el('div', { id: 'ref-banner', className: 'ref-banner' });
   form.appendChild(banner);
 
   const updateBanner = () => {
     const text = REF_BANNERS[cat.value] || '';
-    if (text) {
-      banner.textContent = text;
-      banner.style.display = 'block';
-    } else {
-      banner.style.display = 'none';
-    }
+    banner.textContent = text;
+    banner.style.display = text ? 'block' : 'none';
+  };
+
+  const updateArt = () => {
+    const src = IMAGE_MAP[cat.value] || IMAGE_DEFAULT;
+    artImg.src = src;
+    artWrap.style.display = cat.value ? 'block' : 'none';
   };
 
   form.appendChild(el('label', { text: 'Data' }));
@@ -608,6 +718,7 @@ async function renderForm(main, editId) {
   });
   form.appendChild(pk);
 
+  // Oil fields
   const oilDiv = el('div', { id: 'oil-fields', style: 'display:none' });
   oilDiv.appendChild(el('h3', { text: 'Detalhes do óleo' }));
   oilDiv.appendChild(el('label', { text: 'Marca' }));
@@ -660,12 +771,16 @@ async function renderForm(main, editId) {
     const c = cat.value || '';
     oilDiv.style.display = c.toLowerCase().includes('óleo') || c.toLowerCase().includes('oleo') ? 'block' : 'none';
   };
+
   cat.onchange = () => {
     updateBanner();
     toggleOil();
+    updateArt();
   };
+
   toggleOil();
   updateBanner();
+  updateArt();
 
   form.appendChild(el('button', { type: 'submit', className: 'primary', text: 'Salvar' }));
   form.appendChild(el('button', { type: 'button', className: 'secondary', text: 'Cancelar', onclick: () => showScreen('historico') }));
@@ -728,7 +843,7 @@ async function exportPDF() {
     doc.text(`${i + 1}. ${m.categoria} — ${formatDate(m.data)} — ${m.quilometragem?.toLocaleString('pt-BR') || '—'} km`, 14, y);
     y += 5;
     if (m.oil?.marca) {
-      doc.text(`   Óleo: ${m.oil.marca} \( {m.oil.viscosidade || ''} ( \){m.oil.tipo || ''}) API:\( {m.oil.classificacaoAPI || '-'} ACEA: \){m.oil.classificacaoACEA || '-'}`, 14, y);
+      doc.text(`   Óleo: ${m.oil.marca} ${m.oil.viscosidade || ''} (${m.oil.tipo || ''}) API: ${m.oil.classificacaoAPI || '-'} ACEA: ${m.oil.classificacaoACEA || '-'}`, 14, y);
       y += 5;
     }
     if (m.proximaData || m.proximaQuilometragem) {
