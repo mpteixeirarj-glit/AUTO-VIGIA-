@@ -2,58 +2,54 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Auto-Vigia</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#00e5ff">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0d14">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Auto-Vigia">
+  <title>Auto-Vigia</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="preload" href="fonts/vigia-pixel.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="styles.css">
+  <script src="version.js"></script>
 </head>
 <body>
-  <header id="main-header">
-    <span class="header-title">⚙ AUTO-VIGIA</span>
-    <span class="header-clock" id="vigia-clock"></span>
+  <header id="topo">
+    <div class="hl1">
+      <h1><span class="engrenagem" aria-hidden="true">⚙</span> AUTO-<b>VIGIA</b></h1>
+      <a class="hbtn txt esp" href="https://mpteixeirarj-glit.github.io/Vigia-energy-/" title="Voltar ao hub dos apps Vigia">HUB</a>
+    </div>
+    <div class="hl2">
+      <span class="ver" id="versao-topo"></span>
+      <span class="relogio" id="relogio"></span>
+    </div>
   </header>
-  <main id="app"></main>
-  <nav id="bottom-nav">
-    <button data-screen="inicio" class="active">
-      <span class="icon">🏠</span>
-      <span>Início</span>
-    </button>
-    <button data-screen="historico">
-      <span class="icon">📋</span>
-      <span>Histórico</span>
-    </button>
-    <button data-screen="veiculos">
-      <span class="icon">🚗</span>
-      <span>Veículos</span>
-    </button>
-    <button data-screen="lembretes">
-      <span class="icon">🔔</span>
-      <span>Lembretes</span>
-    </button>
-    <button data-screen="mais">
-      <span class="icon">⋯</span>
-      <span>Mais</span>
-    </button>
+
+  <main id="app" aria-live="polite"></main>
+
+  <nav id="bottom-nav" aria-label="Navegação">
+    <button type="button" data-screen="inicio"><span class="e" aria-hidden="true">🏠</span>Início</button>
+    <button type="button" data-screen="historico"><span class="e" aria-hidden="true">📋</span>Histórico</button>
+    <button type="button" data-screen="veiculo"><span class="e" aria-hidden="true">🚙</span>Veículo</button>
+    <button type="button" data-screen="lembretes"><span class="e" aria-hidden="true">🔔</span>Lembretes</button>
+    <button type="button" data-screen="mais"><span class="e" aria-hidden="true">⋯</span>Mais</button>
   </nav>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="app.js"></script>
-  <script>
-    function updateClock() {
-      const now = new Date();
-      const d = now.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-      const t = now.toLocaleTimeString('pt-BR');
-      const el = document.getElementById('vigia-clock');
-      if (el) el.textContent = d + ' ' + t;
-    }
-    setInterval(updateClock, 1000);
-    updateClock();
-  </script>
+
+  <div id="toast" role="status" hidden></div>
+  <div id="modal" class="modal" hidden>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modal-msg">
+      <p id="modal-msg"></p>
+      <div class="modal-acoes">
+        <button type="button" class="btn" id="modal-nao">Cancelar</button>
+        <button type="button" class="btn amarelo" id="modal-sim">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="vendor/jspdf.umd.min.js" defer></script>
+  <script src="app.js" defer></script>
 </body>
 </html>
