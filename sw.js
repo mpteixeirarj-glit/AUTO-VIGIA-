@@ -8,7 +8,7 @@
 var VERSAO = 'av-1.0.0';
 var ARQUIVOS = [
   './', 'index.html', 'styles.css', 'app.js', 'version.js', 'manifest.json',
-  'vendor/jspdf.umd.min.js', 'fonts/press-start-2p.woff2',
+  'vendor/jspdf.umd.min.js', 'fonts/vigia-pixel.woff2',
   'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png',
   'img/gv-34.webp', 'img/gv-frontal.webp', 'img/gv-lateral.webp', 'img/gv-motor.webp',
   'img/gv-traseira-estepe.webp', 'img/gv-traseira-pixel.webp'

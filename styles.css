@@ -1,14 +1,14 @@
 /* Auto-Vigia — mesmo sistema visual do Vigia Energy (common.css) */
 @font-face {
-  font-family: 'Press Start 2P';
-  src: url('fonts/press-start-2p.woff2') format('woff2');
+  font-family: 'Vigia Pixel';
+  src: url('fonts/vigia-pixel.woff2') format('woff2');
   font-weight: 400; font-style: normal; font-display: swap;
 }
 :root {
   --bg: #0b0d14; --card: #12151f; --borda: #1e2535;
   --ciano: #00e5ff; --amarelo: #ffd700; --vermelho: #ff4444; --verde: #39ff7a; --laranja: #ff8a3d;
   --txt: #e0e0e0; --dim: #8b93a1;
-  --pixel: 'Press Start 2P', monospace;
+  --pixel: 'Vigia Pixel', monospace;
   --mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -184,3 +184,7 @@ nav button.on { color: var(--ciano); border-top-color: var(--ciano); background:
 .modal-acoes { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 
 @media (prefers-reduced-motion: reduce) { .btn:active { transform: none; } }
+
+/* Títulos, botões e menu em caixa alta, como no Vigia Energy.
+ * A fonte Vigia Pixel tem maiúsculas acentuadas corretas (Í, Ó, É…). */
+h2, h3, .btn, nav button, .atalho, .mais-item, .status, .saudacao, .eco .t, summary.pixel { text-transform: uppercase; }

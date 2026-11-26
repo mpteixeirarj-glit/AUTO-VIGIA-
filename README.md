@@ -16,7 +16,7 @@ version.js        Versão do app + histórico de novidades (fonte única)
 sw.js             Service worker (cache "av-*"; navegação network-first)
 manifest.json     Manifest PWA
 img/*.webp        Ilustrações com fundo transparente
-fonts/            Press Start 2P local (OFL) — funciona offline
+fonts/            Vigia Pixel (Press Start 2P com maiúsculas acentuadas corrigidas; OFL) — funciona offline
 vendor/           jsPDF 2.5.1 local (MIT) — PDF funciona offline
 icon-*.png        Ícones do app
 ```

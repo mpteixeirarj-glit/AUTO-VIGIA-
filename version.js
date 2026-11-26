@@ -23,6 +23,7 @@ self.AV_NOVIDADES = [
     'PDF completo (oficina, custo, observações, quebra de linha) e funciona offline',
     'Imagens com fundo transparente e 4× mais leves',
     'Texto legível (fonte pixel só nos títulos) e zoom liberado',
+    'Fonte Vigia Pixel: maiúsculas acentuadas corretas (antes "INíCIO", "HISTóRICO")',
     'Botão HUB no topo para voltar à escolha dos apps Vigia',
     'Versão instalada no topo e histórico de versões em Mais → Sobre'
   ] },
