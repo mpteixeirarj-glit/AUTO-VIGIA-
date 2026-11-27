@@ -1,8 +1,11 @@
 /* Versão do Auto-Vigia — fonte única exibida no app (topo e Mais → Sobre).
  * A CADA atualização: suba AV_VERSAO aqui E a constante VERSAO em sw.js
  * (o navegador só detecta service worker novo se o sw.js mudar). */
-self.AV_VERSAO = '1.2.0';
+self.AV_VERSAO = '1.2.1';
 self.AV_NOVIDADES = [
+  { v: '1.2.1', data: '27/11/2026', itens: [
+    'Botão HUB leva ao novo HUB central do Vigia (mpteixeirarj-glit.github.io)'
+  ] },
   { v: '1.2.0', data: '27/11/2026', itens: [
     'Novo nome: Vigia Auto (antes Auto-Vigia), no padrão dos outros apps Vigia',
     'Topo igual ao do Vigia Energy: olho piscando antes do nome "VIGIA AUTO"',

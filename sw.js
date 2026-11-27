@@ -5,7 +5,7 @@
  *
  * IMPORTANTE: o Vigia Energy e o Vigia Financeiro vivem na MESMA origem
  * (mpteixeirarj-glit.github.io). Só mexemos em caches com prefixo "av-". */
-var VERSAO = 'av-1.2.0';
+var VERSAO = 'av-1.2.1';
 var ARQUIVOS = [
   './', 'index.html', 'styles.css', 'app.js', 'version.js', 'manifest.json', 'nuvem.js',
   'vendor/jspdf.umd.min.js', 'fonts/vigia-pixel.woff2',

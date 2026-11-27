@@ -10,7 +10,8 @@ const LS_ULTIMO_BACKUP = 'av_ultimoBackup'; // mesma origem dos outros Vigias: s
 const DIAS_AVISO = 30;      // "próxima" quando faltam até 30 dias
 const KM_AVISO = 2000;      // ... ou até 2.000 km
 const DIAS_LEMBRETE_BACKUP = 30;
-const HUB_URL = 'https://mpteixeirarj-glit.github.io/Vigia-energy-/';
+const HUB_URL = 'https://mpteixeirarj-glit.github.io/hub/';
+const ENERGY_URL = 'https://mpteixeirarj-glit.github.io/Vigia-energy-/energy/';
 const FINANCEIRO_URL = 'https://mpteixeirarj-glit.github.io/vigia/';
 
 const CATEGORIES = [
@@ -1075,7 +1076,7 @@ async function renderSobre(main) {
   const eco = el('div', { className: 'card eco' }, [el('h2', { text: '▶ Ecossistema Vigia' })]);
   [
     { e: '🧭', t: 'HUB Vigia', d: 'Escolher outro app Vigia', href: HUB_URL },
-    { e: '⚡', t: 'Vigia Energy', d: 'Consumo de energia elétrica', href: HUB_URL + 'energy/' },
+    { e: '⚡', t: 'Vigia Energy', d: 'Consumo de energia elétrica', href: ENERGY_URL },
     { e: '💰', t: 'Vigia Financeiro', d: 'Finanças pessoais', href: FINANCEIRO_URL },
     { e: '🚗', t: 'Vigia Auto', d: 'Você está aqui', atual: true }
   ].forEach(x => eco.appendChild(el('a', { href: x.href || '#', className: x.atual ? 'atual' : '', 'aria-current': x.atual ? 'page' : null,
