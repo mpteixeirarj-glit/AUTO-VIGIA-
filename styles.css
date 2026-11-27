@@ -188,3 +188,13 @@ nav button.on { color: var(--ciano); border-top-color: var(--ciano); background:
 /* Títulos, botões e menu em caixa alta, como no Vigia Energy.
  * A fonte Vigia Pixel tem maiúsculas acentuadas corretas (Í, Ó, É…). */
 h2, h3, .btn, nav button, .atalho, .mais-item, .status, .saudacao, .eco .t, summary.pixel { text-transform: uppercase; }
+
+/* ===== nuvem (v1.1) ===== */
+.sync { background: none; border: 0; font-size: 14px; line-height: 1; padding: 2px 4px; cursor: pointer; min-width: 24px; color: var(--dim); }
+.sync.entrar { font-family: var(--pixel); font-size: 7px; border: 2px solid currentColor; padding: 4px 6px; white-space: nowrap; }
+.sync.girando { animation: girar 1s steps(8) infinite; }
+@keyframes girar { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .sync.girando { animation: none; } }
+.hl2 .relogio { flex: 1 1 auto; min-width: 0; overflow: hidden; text-align: right; }
+.conta-quem { border: 2px solid var(--borda); padding: 10px 12px; background: var(--bg); }
+.conta-nome { color: var(--ciano); font-size: 15px; margin-bottom: 2px; }

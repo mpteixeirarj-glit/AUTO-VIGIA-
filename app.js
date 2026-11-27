@@ -296,10 +296,12 @@ async function getVehicle() {
 
 async function saveVehicle(v) {
   v.id = 1;
+  v.atualizadoEm = new Date().toISOString();   // a nuvem usa para decidir qual versão vale
   const t = db.transaction('vehicle', 'readwrite');
   const fim = fimTx(t);
   t.objectStore('vehicle').put(v);
   await fim;
+  agendarEnvio();
 }
 
 function ordenarManutencoes(list) {
@@ -325,18 +327,23 @@ async function saveMaintenance(m) {
   // Registro novo: SEM a propriedade id (id: undefined faz o IndexedDB recusar a gravação)
   if (m.id === undefined || m.id === null) { delete m.id; m.criadoEm = m.criadoEm || agora; }
   m.atualizadoEm = agora;
+  if (!m.gid) m.gid = novoGid();   // id global: o id numérico do IndexedDB se repete entre aparelhos
   const t = db.transaction('maintenances', 'readwrite');
   const fim = fimTx(t);
   const id = await req2p(t.objectStore('maintenances').put(m));
   await fim;
+  agendarEnvio();
   return id;
 }
 
 async function deleteMaintenance(id) {
+  const antes = await getMaintenance(id);
   const t = db.transaction('maintenances', 'readwrite');
   const fim = fimTx(t);
   t.objectStore('maintenances').delete(id);
   await fim;
+  if (antes && antes.gid) { SYNC.apagados[antes.gid] = new Date().toISOString(); gravarSync(); }  // lápide: não volta pela nuvem
+  agendarEnvio();
 }
 
 // ========== Lembretes / status ==========
@@ -393,9 +400,10 @@ const SCREENS = {
   mais: renderMais,
   backup: renderBackup,
   sobre: renderSobre,
+  conta: renderConta,
   form: renderForm
 };
-const NAV_DE = { form: 'historico', km: 'inicio', backup: 'mais', sobre: 'mais' };
+const NAV_DE = { form: 'historico', km: 'inicio', backup: 'mais', sobre: 'mais', conta: 'mais' };
 let telaAtual = 'inicio';
 let renderSeq = 0;
 
@@ -448,7 +456,8 @@ async function renderInicio(main) {
       el('h2', { text: 'Bem-vindo' }),
       el('p', { text: 'Cadastre seu veículo para começar a registrar as manutenções e receber lembretes por data e quilometragem.' }),
       el('button', { type: 'button', className: 'btn cheio full', text: 'Cadastrar veículo', onclick: () => showScreen('veiculo') }),
-      el('button', { type: 'button', className: 'btn full', text: 'Restaurar um backup', onclick: () => showScreen('backup') })
+      el('button', { type: 'button', className: 'btn full', text: 'Restaurar um backup', onclick: () => showScreen('backup') }),
+      NUVEM.fb ? null : el('button', { type: 'button', className: 'btn amarelo full', text: '☁ Entrar com Google (recuperar da nuvem)', onclick: entrarNuvem })
     ]));
     return;
   }
@@ -459,13 +468,14 @@ async function renderInicio(main) {
   // Lembrete de backup
   const ult = lerUltimoBackup();
   const diasBackup = ult ? Math.floor((Date.now() - new Date(ult).getTime()) / 86400000) : null;
-  if (list.length && (diasBackup === null || diasBackup >= DIAS_LEMBRETE_BACKUP)) {
+  if (list.length && !SYNC.logado && (diasBackup === null || diasBackup >= DIAS_LEMBRETE_BACKUP)) {   // com a nuvem ativa, não assusta
     main.appendChild(el('div', { className: 'card alerta' }, [
       el('h3', { text: '💾 Backup', style: 'margin-top:0' }),
       el('p', { className: 'dim', text: diasBackup === null
         ? 'Você ainda não fez backup. Os dados ficam só neste aparelho: se o navegador for limpo, eles se perdem.'
         : `Último backup há ${plural(diasBackup, 'dia', 'dias')}. Faça um novo e guarde fora do celular.` }),
-      el('button', { type: 'button', className: 'btn amarelo full', text: 'Fazer backup agora', onclick: () => showScreen('backup') })
+      el('button', { type: 'button', className: 'btn amarelo full', text: 'Fazer backup agora', onclick: () => showScreen('backup') }),
+      el('button', { type: 'button', className: 'btn full', text: '☁ Ou entre com Google: backup automático na nuvem', onclick: entrarNuvem })
     ]));
   }
 
@@ -919,6 +929,7 @@ async function renderForm(main, params = {}) {
 async function renderMais(main) {
   const card = el('div', { className: 'card' }, [el('h2', { text: '▶ Mais opções' })]);
   const itens = [
+    { e: '☁️', t: 'Conta e nuvem', fn: () => showScreen('conta') },
     { e: '💾', t: 'Backup e dados', fn: () => showScreen('backup') },
     { e: '📄', t: 'Exportar PDF', fn: exportPDF },
     { e: 'ℹ️', t: 'Sobre e versões', fn: () => showScreen('sobre') }
@@ -935,7 +946,9 @@ async function renderMais(main) {
 async function renderBackup(main) {
   const card = el('div', { className: 'card' }, [el('h2', { text: '▶ Backup e dados' })]);
   const ult = lerUltimoBackup();
-  card.appendChild(el('p', { className: 'dim', text: 'Seus dados ficam só neste aparelho. Exporte um arquivo de backup e guarde fora do celular (Drive, e-mail, computador).' }));
+  card.appendChild(el('p', { className: 'dim', text: NUVEM.fb
+    ? 'Seus dados estão neste aparelho e sincronizados na nuvem (conta Google). O arquivo de backup é uma cópia extra, guardada por você.'
+    : 'Seus dados ficam só neste aparelho. Entre com Google (Mais → Conta e nuvem) ou exporte um arquivo de backup e guarde fora do celular.' }));
   card.appendChild(el('p', { className: 'dim', style: 'margin-top:6px', text: 'Último backup: ' + (ult ? new Date(ult).toLocaleString('pt-BR') : 'nunca') }));
   const persist = el('p', { className: 'dim', style: 'margin-top:6px' });
   card.appendChild(persist);
@@ -993,6 +1006,7 @@ function normalizarManutencao(m, i) {
     atualizadoEm: typeof m.atualizadoEm === 'string' ? m.atualizadoEm : new Date().toISOString()
   };
   if (Number.isInteger(m.id) && m.id > 0) out.id = m.id;
+  out.gid = typeof m.gid === 'string' && m.gid ? m.gid : novoGid();
   if (m.oil && typeof m.oil === 'object') {
     out.oil = { marca: str(m.oil.marca), viscosidade: str(m.oil.viscosidade), tipo: str(m.oil.tipo),
       classificacaoAPI: str(m.oil.classificacaoAPI), classificacaoACEA: str(m.oil.classificacaoACEA) };
@@ -1018,6 +1032,12 @@ async function restoreBackup(fileInput) {
   if (!(await confirmar(`Restaurar backup?\n${resumo}\n\nTODOS os dados atuais serão substituídos.`, { sim: 'Restaurar', perigo: true }))) return;
 
   // Uma única transação para os dois stores: ou grava tudo, ou nada
+  // a restauração vale também para a nuvem: o que existia e não está no arquivo vira lápide,
+  // e o que veio do arquivo ganha carimbo de agora (vence versões antigas guardadas na nuvem)
+  const agoraISO = new Date().toISOString(), novos = new Set(maints.map(m => m.gid));
+  (await getMaintenances()).forEach(m => { if (m.gid && !novos.has(m.gid)) SYNC.apagados[m.gid] = agoraISO; });
+  maints.forEach(m => { m.atualizadoEm = agoraISO; delete SYNC.apagados[m.gid]; });
+  if (vehicle) vehicle.atualizadoEm = agoraISO;
   const t = db.transaction(['vehicle', 'maintenances'], 'readwrite');
   const fim = fimTx(t);
   try {
@@ -1030,6 +1050,7 @@ async function restoreBackup(fileInput) {
     try { t.abort(); } catch (e) { /* já encerrada */ }
     return toast('Falha ao restaurar (' + (err?.message || err) + '). Dados atuais mantidos.', 'erro');
   }
+  gravarSync(); agendarEnvio();
   toast('Backup restaurado.');
   showScreen('inicio');
 }
@@ -1040,7 +1061,7 @@ async function renderSobre(main) {
   card.appendChild(el('img', { src: IMG.tresQuartos, className: 'arte pequena', alt: 'Ilustração do veículo', width: 720, height: 428 }));
   card.appendChild(el('h2', { text: '▶ Sobre', style: 'text-align:center' }));
   card.appendChild(el('p', { className: 'versao-atual' }, ['Versão instalada: ', el('b', { text: VERSAO })]));
-  card.appendChild(el('p', { className: 'dim', style: 'margin-top:4px', text: 'Controle de manutenção do seu veículo. Funciona offline; dados guardados neste aparelho.' }));
+  card.appendChild(el('p', { className: 'dim', style: 'margin-top:4px', text: 'Controle de manutenção do seu veículo. Funciona offline; dados guardados neste aparelho e, se você entrar com Google, sincronizados na nuvem.' }));
 
   const nov = el('div', { className: 'novidades' });
   (self.AV_NOVIDADES || []).forEach(n => {
@@ -1145,6 +1166,222 @@ async function exportPDF() {
   toast('PDF gerado.');
 }
 
+// ========== Nuvem (Firebase, opcional) ==========
+/* Modelo: o IndexedDB do aparelho é a fonte de leitura (offline-first); a nuvem é espelho e ponte
+ * entre aparelhos. Nunca sobrescreve em bloco: mescla manutenção a manutenção pelo id global (gid),
+ * vence o 'atualizadoEm' mais recente; exclusões viajam como lápides. Veículo: vence o mais recente. */
+const LS_SYNC = 'av_sync';
+let SYNC = (() => { try { return JSON.parse(localStorage.getItem(LS_SYNC)) || {}; } catch (e) { return {}; } })();
+SYNC.apagados = SYNC.apagados || {};
+function gravarSync() { try { localStorage.setItem(LS_SYNC, JSON.stringify(SYNC)); } catch (e) { /* sem armazenamento */ } }
+function novoGid() { const a = new Uint32Array(2); crypto.getRandomValues(a); return a[0].toString(36) + a[1].toString(36); }
+const NUVEM = { mod: null, fb: null, user: null, estado: 'entrar', erro: '', ultimaPuxada: 0, enviando: false, deNovo: false, timer: null };
+
+function comTempo(p, ms) { return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('tempo esgotado')), ms))]); }
+let tentativasNuvem = 0;
+function carregarNuvem() {
+  // depois de uma falha (ex.: abriu sem internet), tenta com outro endereço: alguns navegadores
+  // guardam a falha do módulo e não tentam de novo o mesmo endereço. O cache offline ignora o "?r=".
+  if (!NUVEM.mod) NUVEM.mod = comTempo(import(tentativasNuvem ? './nuvem.js?r=' + tentativasNuvem : './nuvem.js'), 12000)
+    .catch(e => { NUVEM.mod = null; tentativasNuvem++; throw e; });
+  return NUVEM.mod;
+}
+function hashTxt(t) { let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36) + '.' + t.length; }
+
+/* Estado local no formato da nuvem: manutenções sem o id numérico (que é deste aparelho). */
+async function estadoLocal() {
+  const [vehicle, list] = await Promise.all([getVehicle(), getMaintenances()]);
+  const maintenances = list.map(m => { const c = { ...m }; delete c.id; return c; }).sort((a, b) => (a.gid < b.gid ? -1 : 1));
+  return { vehicle: vehicle ? { ...vehicle } : null, maintenances, apagados: { ...SYNC.apagados } };
+}
+function canonico(s) {
+  const ord = o => { if (Array.isArray(o)) return o.map(ord); if (o && typeof o === 'object') { const r = {}; Object.keys(o).sort().forEach(k => { r[k] = ord(o[k]); }); return r; } return o; };
+  return JSON.stringify(ord({ vehicle: s.vehicle || null, maintenances: (s.maintenances || []).slice().sort((a, b) => (a.gid < b.gid ? -1 : 1)), apagados: s.apagados || {} }));
+}
+function mesclarAV(L, R) {
+  const tomb = { ...(L.apagados || {}) }, lim = new Date(Date.now() - 400 * 864e5).toISOString();
+  Object.keys(R.apagados || {}).forEach(k => { if (!(tomb[k] >= R.apagados[k])) tomb[k] = R.apagados[k]; });
+  Object.keys(tomb).forEach(k => { if (tomb[k] < lim) delete tomb[k]; });
+  const mapa = new Map();
+  (L.maintenances || []).forEach(m => mapa.set(m.gid, m));
+  (R.maintenances || []).forEach(m => { const l = mapa.get(m.gid); if (!l || (m.atualizadoEm || '') > (l.atualizadoEm || '')) mapa.set(m.gid, m); });
+  const maintenances = [...mapa.values()].filter(m => !(tomb[m.gid] && tomb[m.gid] >= (m.atualizadoEm || '')));
+  let vehicle = L.vehicle || R.vehicle || null;
+  if (L.vehicle && R.vehicle && (R.vehicle.atualizadoEm || '') > (L.vehicle.atualizadoEm || '')) vehicle = R.vehicle;
+  return { vehicle, maintenances, apagados: tomb };
+}
+/* Aplica o estado mesclado no IndexedDB (uma transação). Devolve true se algo mudou. */
+async function aplicarLocal(M) {
+  const atual = await estadoLocal(), porGid = new Map();
+  (await getMaintenances()).forEach(m => porGid.set(m.gid, m));
+  const t = db.transaction(['vehicle', 'maintenances'], 'readwrite'), fim = fimTx(t);
+  const sv = t.objectStore('vehicle'), sm = t.objectStore('maintenances');
+  let mudou = false;
+  if (M.vehicle && JSON.stringify(M.vehicle) !== JSON.stringify(atual.vehicle)) { sv.put({ ...M.vehicle, id: 1 }); mudou = true; }
+  const ficam = new Set();
+  M.maintenances.forEach(m => {
+    ficam.add(m.gid);
+    const l = porGid.get(m.gid);
+    if (!l) { const n = { ...m }; delete n.id; sm.put(n); mudou = true; }
+    else { const c = { ...l }; delete c.id; if (JSON.stringify(c) !== JSON.stringify(m)) { sm.put({ ...m, id: l.id }); mudou = true; } }
+  });
+  porGid.forEach((l, gid) => { if (!ficam.has(gid)) { sm.delete(l.id); mudou = true; } });
+  await fim;
+  SYNC.apagados = M.apagados; gravarSync();
+  return mudou;
+}
+
+const SYNC_UI = {
+  entrar: ['🔑 ENTRAR', 'var(--amarelo)', 'Entrar com Google para guardar os dados na nuvem'],
+  off: ['☁', 'var(--dim)', 'Nuvem: conectando…'],
+  sync: ['⟳', 'var(--ciano)', 'Sincronizando…'],
+  ok: ['☁', 'var(--ciano)', 'Sincronizado'],
+  pendente: ['☁', 'var(--amarelo)', 'Alterações aguardando envio'],
+  offline: ['📵', 'var(--amarelo)', 'Offline — tudo salvo neste aparelho; envia quando a internet voltar'],
+  erro: ['⚠', 'var(--vermelho)', 'Erro ao sincronizar']
+};
+function setSync(est, e) {
+  NUVEM.estado = est; NUVEM.erro = e ? (NUVEM.mod && e.code ? '' : '') + ((e && (e.code || e.message)) || String(e)) : '';
+  const u = SYNC_UI[est] || SYNC_UI.off, el2 = $('sync-status');
+  let tit = u[2] + (est === 'ok' && SYNC.ultimo ? ' às ' + new Date(SYNC.ultimo).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '');
+  if (est === 'erro') tit = /permission-denied/.test(NUVEM.erro) ? 'A nuvem recusou o acesso: as regras do Firestore precisam liberar usuarios/{uid}/autovigia. Seus dados seguem salvos neste aparelho.' : u[2] + ': ' + NUVEM.erro;
+  if (est !== 'entrar' && (NUVEM.user || SYNC.logado)) tit += ' · ' + (NUVEM.user ? (NUVEM.user.displayName || NUVEM.user.email) : SYNC.email);
+  el2.textContent = u[0]; el2.style.color = u[1]; el2.title = tit; el2.setAttribute('aria-label', tit);
+  el2.classList.toggle('entrar', est === 'entrar'); el2.classList.toggle('girando', est === 'sync');
+  const st = document.getElementById('conta-status'); if (st) st.textContent = tit;
+}
+function agendarEnvio() {
+  if (!NUVEM.fb) return;
+  clearTimeout(NUVEM.timer); setSync('pendente');
+  NUVEM.timer = setTimeout(() => empurrar().catch(() => {}), 1200);
+}
+async function empurrar() {
+  clearTimeout(NUVEM.timer);
+  if (!NUVEM.fb) return;
+  if (NUVEM.enviando) { NUVEM.deNovo = true; return; }
+  NUVEM.enviando = true;
+  try {
+    const j = canonico(await estadoLocal()), h = hashTxt(j);
+    if (SYNC.hash === h) { setSync('ok'); return; }
+    if (!navigator.onLine) { setSync('offline'); return; }
+    setSync('sync');
+    const n = await carregarNuvem();
+    await comTempo(n.gravar(NUVEM.fb, j), 20000);
+    SYNC.hash = h; SYNC.ultimo = Date.now(); gravarSync(); setSync('ok');
+  } catch (e) { setSync(navigator.onLine ? 'erro' : 'offline', e); }
+  finally { NUVEM.enviando = false; if (NUVEM.deNovo) { NUVEM.deNovo = false; empurrar().catch(() => {}); } }
+}
+async function puxar() {
+  if (!NUVEM.fb) return;
+  if (!navigator.onLine) { setSync('offline'); return; }
+  setSync('sync');
+  try {
+    const n = await carregarNuvem();
+    const txt = await comTempo(n.baixar(NUVEM.fb), 15000);
+    NUVEM.ultimaPuxada = Date.now();
+    if (txt) {
+      const R = JSON.parse(txt);
+      SYNC.hash = hashTxt(canonico(R));   // base: o que está na nuvem
+      const mudou = await aplicarLocal(mesclarAV(await estadoLocal(), R));
+      if (mudou) {
+        // não atropela um formulário aberto
+        if (['form', 'veiculo', 'km'].includes(telaAtual)) toast('Dados atualizados pela nuvem.');
+        else showScreen(telaAtual);
+      }
+    } else SYNC.hash = null;
+    gravarSync();
+    await empurrar();   // sobe o que só existe neste aparelho
+  } catch (e) { setSync(navigator.onLine ? 'erro' : 'offline', e); }
+}
+/* Conta Google trocada neste aparelho: não mistura o veículo de uma conta com o da outra. */
+async function conferirTrocaDeConta(u) {
+  if (!SYNC.fbUid || SYNC.fbUid === u.uid) return true;
+  const L = await estadoLocal();
+  if (!L.vehicle && !L.maintenances.length) return true;
+  const ok = await confirmar('Os dados deste aparelho são da conta ' + (SYNC.email || 'anterior') + '.\n\nEntrar como ' + (u.email || 'outra conta') +
+    ' substitui os dados deste aparelho pelos dessa conta (os da conta anterior continuam na nuvem dela).', { sim: 'Substituir', perigo: true });
+  if (!ok) return false;
+  const t = db.transaction(['vehicle', 'maintenances'], 'readwrite'), fim = fimTx(t);
+  t.objectStore('vehicle').clear(); t.objectStore('maintenances').clear(); await fim;
+  SYNC = { apagados: {} }; gravarSync();
+  return true;
+}
+async function conectar(u) {
+  if (!(await conferirTrocaDeConta(u))) { const n = await carregarNuvem(); await n.sair(); NUVEM.user = null; NUVEM.fb = null; setSync('entrar'); return; }
+  NUVEM.user = u; NUVEM.fb = u.uid;
+  if (SYNC.fbUid !== u.uid) { SYNC.hash = null; }
+  SYNC.fbUid = u.uid; SYNC.email = u.email; SYNC.logado = true; gravarSync();
+  await puxar();
+  if (telaAtual === 'conta' || telaAtual === 'inicio' || telaAtual === 'backup') showScreen(telaAtual);
+}
+async function iniciarNuvem() {
+  if (NUVEM.fb) return puxar();
+  try {
+    const n = await carregarNuvem();
+    const u = await comTempo(n.usuarioAtual(), 8000).catch(() => null);
+    if (u) await conectar(u); else { SYNC.logado = false; gravarSync(); setSync('entrar'); }
+  } catch (e) { setSync(SYNC.logado ? 'offline' : 'entrar'); }   // sem rede: segue local (logado → mostra offline, não "entrar")
+}
+async function entrarNuvem() {
+  if (!navigator.onLine) return toast('Sem internet: entre quando estiver online.', 'erro');
+  let n;
+  try { n = await carregarNuvem(); } catch (e) { return toast('Não foi possível falar com a nuvem. Tente de novo.', 'erro'); }
+  try {
+    const u = await n.entrarGoogle();
+    if (u) { await conectar(u); if (NUVEM.fb) toast('Conectado como ' + (u.displayName || u.email) + '.'); }
+  } catch (e) { toast(n.mensagem(e), 'erro'); }
+}
+async function sairNuvem() {
+  if (!(await confirmar('Sair da conta Google?\n\nOs dados continuam neste aparelho e na nuvem. Para sincronizar de novo, basta entrar.', { sim: 'Sair' }))) return;
+  try { await comTempo(empurrar(), 5000); } catch (e) { /* segue */ }
+  try { const n = await carregarNuvem(); await n.sair(); } catch (e) { /* sem rede: a sessão local é encerrada mesmo assim */ }
+  NUVEM.user = null; NUVEM.fb = null; SYNC.logado = false; gravarSync(); setSync('entrar');
+  toast('Você saiu da conta.');
+  showScreen('conta');
+}
+window.addEventListener('online', () => { iniciarNuvem().catch(() => {}); });
+window.addEventListener('offline', () => { if (NUVEM.fb) setSync('offline'); });
+document.addEventListener('visibilitychange', () => {
+  if (!NUVEM.fb) return;
+  if (document.visibilityState === 'hidden') empurrar().catch(() => {});
+  else if (Date.now() - NUVEM.ultimaPuxada > 60000) puxar().catch(() => {});
+});
+/* Registros anteriores à v1.1 ganham o id global (uma vez). */
+async function garantirGids() {
+  const sem = (await getMaintenances()).filter(m => !m.gid);
+  if (!sem.length) return;
+  const t = db.transaction('maintenances', 'readwrite'), fim = fimTx(t), sm = t.objectStore('maintenances');
+  sem.forEach(m => { m.gid = novoGid(); sm.put(m); });
+  await fim;
+}
+
+// ========== Conta e nuvem ==========
+async function renderConta(main) {
+  const card = el('div', { className: 'card' }, [el('h2', { text: '▶ Conta e nuvem' })]);
+  const u = NUVEM.user;
+  if (u) {
+    card.appendChild(el('div', { className: 'conta-quem' }, [
+      el('div', { className: 'conta-nome', text: u.displayName || 'Usuário' }),
+      el('div', { className: 'dim', text: u.email || '' })
+    ]));
+    card.appendChild(el('p', { className: 'dim', style: 'margin-top:10px' }, ['☁ ', el('span', { id: 'conta-status', text: $('sync-status').title })]));
+    card.appendChild(el('p', { className: 'dim', style: 'margin-top:6px', text: 'Os dados ficam neste aparelho e numa área da nuvem só sua. Em outro celular, basta entrar com a mesma conta Google.' }));
+    card.appendChild(el('button', { type: 'button', className: 'btn full', text: '⟳ Sincronizar agora', onclick: () => puxar().catch(() => {}) }));
+    card.appendChild(el('button', { type: 'button', className: 'btn perigo full', text: 'Sair da conta', onclick: sairNuvem }));
+  } else if (SYNC.logado) {
+    card.appendChild(el('div', { className: 'conta-quem' }, [el('div', { className: 'conta-nome', text: SYNC.email || 'Conta Google' }), el('div', { className: 'dim', text: 'sem internet agora' })]));
+    card.appendChild(el('p', { className: 'dim', style: 'margin-top:10px' }, ['☁ ', el('span', { id: 'conta-status', text: $('sync-status').title })]));
+    card.appendChild(el('p', { className: 'dim', style: 'margin-top:6px', text: 'Tudo o que você registrar fica salvo neste aparelho e vai para a nuvem quando a internet voltar.' }));
+  } else {
+    card.appendChild(el('p', { text: 'Entre com Google para guardar seus dados na nuvem: eles voltam se você limpar o navegador ou trocar de celular.' }));
+    card.appendChild(el('p', { className: 'dim', style: 'margin-top:6px', text: 'Sem entrar, o app continua funcionando normalmente, só neste aparelho.' }));
+    card.appendChild(el('button', { type: 'button', className: 'btn cheio full', text: 'Entrar com Google', onclick: entrarNuvem }));
+    card.appendChild(el('p', { className: 'dim', style: 'margin-top:8px;font-size:12px', text: 'Se a janela do Google não abrir no app instalado, abra o Auto-Vigia pelo navegador e entre por lá.' }));
+  }
+  main.appendChild(card);
+  main.appendChild(voltar('mais'));
+}
+
 // ========== Relógio e versão no topo ==========
 function atualizarRelogio() {
   const agora = new Date();
@@ -1196,7 +1433,14 @@ async function init() {
     return;
   }
   registrarSW();
+  await garantirGids();
+  $('sync-status').addEventListener('click', () => { if (NUVEM.estado === 'entrar') entrarNuvem(); else showScreen('conta'); });
+  setSync(SYNC.logado ? 'off' : 'entrar');
   showScreen('inicio');
+  iniciarNuvem().catch(() => {});   // em segundo plano: o app já está aberto
 }
 
 init();
+
+// para testes automatizados
+window.__av = { estadoLocal, mesclarAV, canonico, puxar, empurrar, nuvem: () => NUVEM, sync: () => SYNC };

@@ -1,8 +1,9 @@
 # Auto-Vigia 🚗
 
-Versão atual: **1.0.0** (exibida no app: topo e Mais → Sobre e versões).
+Versão atual: **1.1.0** (exibida no app: topo e Mais → Sobre e versões).
 
-PWA offline-first de controle de manutenção veicular. HTML/CSS/JS puro, sem frameworks, sem backend.
+PWA offline-first de controle de manutenção veicular. HTML/CSS/JS puro, sem frameworks.
+Login opcional com Google e sincronização na nuvem (Firebase, projeto `auto-vigia`) desde a v1.1.
 Faz parte do ecossistema Vigia — o botão **HUB** no topo volta para a escolha dos apps
 (https://mpteixeirarj-glit.github.io/Vigia-energy-/).
 
@@ -13,6 +14,7 @@ index.html        Topo (HUB, versão, relógio), navegação, modal e toast
 styles.css        Mesmo sistema visual do Vigia Energy (fonte pixel só nos títulos)
 app.js            Telas, IndexedDB, lembretes, backup, PDF
 version.js        Versão do app + histórico de novidades (fonte única)
+nuvem.js          Firebase (Google + Firestore), carregado sob demanda — sem rede o app segue local
 sw.js             Service worker (cache "av-*"; navegação network-first)
 manifest.json     Manifest PWA
 img/*.webp        Ilustrações com fundo transparente
@@ -35,12 +37,32 @@ icon-*.png        Ícones do app
 - **Lembretes**: só o registro mais recente de cada *categoria + item* gera lembrete.
   Aviso com 30 dias ou 2.000 km de antecedência.
 
+## Nuvem (Firebase `auto-vigia`)
+
+- Login **opcional** com Google (popup). Sem login ou sem rede, tudo funciona só no aparelho.
+- Documento `usuarios/{uid}/autovigia/dados` com `{ vehicle, maintenances, apagados }` em JSON.
+- Mescla por manutenção usando `gid` (id global); vence `atualizadoEm` mais recente; exclusões viram
+  lápides em `apagados`. Veículo: vence o `atualizadoEm` mais recente.
+- Estado da sincronização em `localStorage['av_sync']`.
+- **Regras do Firestore** (Console → Firestore → Regras) — obrigatórias:
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /usuarios/{uid}/autovigia/{doc} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}
+```
+
 ## Modelo de dados (IndexedDB `AutoVigiaDB` v1)
 
 ```
 vehicle:      { id: 1, marca, modelo, ano, motorizacao, transmissao, quilometragemAtual, observacoes,
                 specs: { oil, transmission, tires, fuel, brake, pads, cooling, battery, filters, wipers } }
-maintenances: { id (auto), categoria, item, data, quilometragem, oficina, custo, observacoes,
+maintenances: { id (auto), gid (id global p/ nuvem), categoria, item, data, quilometragem, oficina, custo, observacoes,
                 proximaData, proximaQuilometragem, oil?: { marca, viscosidade, tipo, classificacaoAPI, classificacaoACEA },
                 criadoEm, atualizadoEm }
 ```

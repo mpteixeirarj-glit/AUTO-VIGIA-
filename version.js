@@ -1,8 +1,18 @@
 /* Versão do Auto-Vigia — fonte única exibida no app (topo e Mais → Sobre).
  * A CADA atualização: suba AV_VERSAO aqui E a constante VERSAO em sw.js
  * (o navegador só detecta service worker novo se o sw.js mudar). */
-self.AV_VERSAO = '1.0.0';
+self.AV_VERSAO = '1.1.0';
 self.AV_NOVIDADES = [
+  { v: '1.1.0', data: '27/11/2026', itens: [
+    'Login com Google (opcional): toque em 🔑 ENTRAR no topo ou em Mais → Conta e nuvem',
+    'Dados sincronizados na nuvem: voltam se limpar o navegador ou trocar de celular',
+    'Continua funcionando offline: grava no aparelho e envia quando a internet voltar',
+    'Indicador ☁ no topo (sincronizado, pendente, offline, erro); toque para ver a conta',
+    'Junta os dados de dois aparelhos sem perder nada; exclusões valem em todos',
+    'Primeiro login envia o que já estava neste aparelho para a nuvem',
+    'Troca de conta Google no mesmo aparelho não mistura os veículos',
+    'Tela Conta e nuvem: nome, e-mail, sincronizar agora e sair'
+  ] },
   { v: '1.0.0', data: '26/11/2026', itens: [
     'Correção: salvar uma manutenção nova falhava sempre (só a edição funcionava)',
     'Correção: app instalável e offline de verdade (faltava o manifest; o service worker nunca ativava)',
