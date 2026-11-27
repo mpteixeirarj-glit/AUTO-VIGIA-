@@ -1,4 +1,4 @@
-// Auto-Vigia — controle de manutenção veicular
+// Vigia Auto (antigo Auto-Vigia) — controle de manutenção veicular
 // PWA offline-first · IndexedDB · sem frameworks
 'use strict';
 
@@ -939,7 +939,7 @@ async function renderMais(main) {
   card.appendChild(el('a', { className: 'mais-item', href: HUB_URL },
     [el('span', { className: 'e', text: '🧭' }), 'Voltar ao HUB Vigia', el('span', { className: 'seta', text: '›' })]));
   main.appendChild(card);
-  main.appendChild(el('p', { className: 'pixel', style: 'text-align:center;font-size:8px;color:var(--dim)', text: 'AUTO-VIGIA v' + VERSAO }));
+  main.appendChild(el('p', { className: 'pixel', style: 'text-align:center;font-size:8px;color:var(--dim)', text: 'VIGIA AUTO v' + VERSAO }));
 }
 
 // ========== Backup ==========
@@ -1020,7 +1020,7 @@ async function restoreBackup(fileInput) {
   let vehicle, maints;
   try {
     const data = JSON.parse(await file.text());
-    if (!data || typeof data !== 'object' || !data.version || !Array.isArray(data.maintenances)) throw new Error('não é um backup do Auto-Vigia');
+    if (!data || typeof data !== 'object' || !data.version || !Array.isArray(data.maintenances)) throw new Error('não é um backup do Vigia Auto');
     if (data.vehicle !== null && data.vehicle !== undefined && typeof data.vehicle !== 'object') throw new Error('veículo inválido');
     maints = data.maintenances.map(normalizarManutencao);
     vehicle = data.vehicle ? { ...data.vehicle, id: 1 } : null;
@@ -1077,7 +1077,7 @@ async function renderSobre(main) {
     { e: '🧭', t: 'HUB Vigia', d: 'Escolher outro app Vigia', href: HUB_URL },
     { e: '⚡', t: 'Vigia Energy', d: 'Consumo de energia elétrica', href: HUB_URL + 'energy/' },
     { e: '💰', t: 'Vigia Financeiro', d: 'Finanças pessoais', href: FINANCEIRO_URL },
-    { e: '🚗', t: 'Auto-Vigia', d: 'Você está aqui', atual: true }
+    { e: '🚗', t: 'Vigia Auto', d: 'Você está aqui', atual: true }
   ].forEach(x => eco.appendChild(el('a', { href: x.href || '#', className: x.atual ? 'atual' : '', 'aria-current': x.atual ? 'page' : null,
     onclick: x.atual ? (e => e.preventDefault()) : null },
     [el('span', { className: 'e', text: x.e }), el('span', {}, [el('div', { className: 't', text: x.t }), el('div', { className: 'd', text: x.d })])])));
@@ -1118,7 +1118,7 @@ async function exportPDF() {
   };
   const regua = () => { if (y > FIM) { doc.addPage(); y = 18; } doc.setDrawColor(200); doc.line(M, y, M + W, y); y += 5; };
 
-  escrever('Auto-Vigia - Histórico de manutenção', { size: 16, bold: true, apos: 3 });
+  escrever('Vigia Auto - Histórico de manutenção', { size: 16, bold: true, apos: 3 });
   escrever(nomeVeiculo(vehicle) || 'Veículo não cadastrado', { size: 11, bold: true });
   escrever(`Km atual: ${fmtKm(vehicle?.quilometragemAtual)}   |   Gerado em ${new Date().toLocaleString('pt-BR')}   |   App v${VERSAO}`, { size: 9, cor: [90, 90, 90], apos: 4 });
 
@@ -1376,7 +1376,7 @@ async function renderConta(main) {
     card.appendChild(el('p', { text: 'Entre com Google para guardar seus dados na nuvem: eles voltam se você limpar o navegador ou trocar de celular.' }));
     card.appendChild(el('p', { className: 'dim', style: 'margin-top:6px', text: 'Sem entrar, o app continua funcionando normalmente, só neste aparelho.' }));
     card.appendChild(el('button', { type: 'button', className: 'btn cheio full', text: 'Entrar com Google', onclick: entrarNuvem }));
-    card.appendChild(el('p', { className: 'dim', style: 'margin-top:8px;font-size:12px', text: 'Se a janela do Google não abrir no app instalado, abra o Auto-Vigia pelo navegador e entre por lá.' }));
+    card.appendChild(el('p', { className: 'dim', style: 'margin-top:8px;font-size:12px', text: 'Se a janela do Google não abrir no app instalado, abra o Vigia Auto pelo navegador e entre por lá.' }));
   }
   main.appendChild(card);
   main.appendChild(voltar('mais'));

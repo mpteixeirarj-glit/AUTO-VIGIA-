@@ -1,8 +1,14 @@
 /* Versão do Auto-Vigia — fonte única exibida no app (topo e Mais → Sobre).
  * A CADA atualização: suba AV_VERSAO aqui E a constante VERSAO em sw.js
  * (o navegador só detecta service worker novo se o sw.js mudar). */
-self.AV_VERSAO = '1.1.0';
+self.AV_VERSAO = '1.2.0';
 self.AV_NOVIDADES = [
+  { v: '1.2.0', data: '27/11/2026', itens: [
+    'Novo nome: Vigia Auto (antes Auto-Vigia), no padrão dos outros apps Vigia',
+    'Topo igual ao do Vigia Energy: olho piscando antes do nome "VIGIA AUTO"',
+    'Nome atualizado no ícone da tela inicial, no Sobre, no PDF e no ecossistema',
+    'Endereço do app não mudou: atalhos e instalações continuam funcionando'
+  ] },
   { v: '1.1.0', data: '27/11/2026', itens: [
     'Login com Google (opcional): toque em 🔑 ENTRAR no topo ou em Mais → Conta e nuvem',
     'Dados sincronizados na nuvem: voltam se limpar o navegador ou trocar de celular',

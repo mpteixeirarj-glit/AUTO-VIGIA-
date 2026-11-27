@@ -1,6 +1,6 @@
-# Auto-Vigia 🚗
+# Vigia Auto 🚗 (antigo Auto-Vigia)
 
-Versão atual: **1.1.0** (exibida no app: topo e Mais → Sobre e versões).
+Versão atual: **1.2.0** (exibida no app: topo e Mais → Sobre e versões).
 
 PWA offline-first de controle de manutenção veicular. HTML/CSS/JS puro, sem frameworks.
 Login opcional com Google e sincronização na nuvem (Firebase, projeto `auto-vigia`) desde a v1.1.

@@ -198,3 +198,12 @@ h2, h3, .btn, nav button, .atalho, .mais-item, .status, .saudacao, .eco .t, summ
 .hl2 .relogio { flex: 1 1 auto; min-width: 0; overflow: hidden; text-align: right; }
 .conta-quem { border: 2px solid var(--borda); padding: 10px 12px; background: var(--bg); }
 .conta-nome { color: var(--ciano); font-size: 15px; margin-bottom: 2px; }
+
+/* ===== v1.2: olho piscando no topo (igual ao Vigia Energy) ===== */
+.olho { display: inline-block; width: 32px; height: 20px; flex: none; image-rendering: pixelated; }
+.olho svg { width: 100%; height: 100%; display: block; }
+.olho .palpebra { transform-box: fill-box; transform-origin: 50% 50%; animation: blink 4.5s infinite steps(1, end); }
+@keyframes blink { 0%, 92% { transform: scaleY(1); } 93%, 96% { transform: scaleY(.1); } 97%, 100% { transform: scaleY(1); } }
+@media (prefers-reduced-motion: reduce) { .olho .palpebra { animation: none; } }
+.hl1 { display: flex; align-items: center; gap: 10px; }
+.hl1 h1 b { color: var(--amarelo); font-weight: 400; }

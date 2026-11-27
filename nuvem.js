@@ -44,7 +44,7 @@ const MSG = {
   'auth/popup-closed-by-user': 'Login cancelado.',
   'auth/cancelled-popup-request': 'Login cancelado.',
   'auth/popup-blocked': 'O navegador bloqueou a janela do Google. Libere pop-ups para este site e tente de novo.',
-  'auth/operation-not-supported-in-this-environment': 'O login com Google não abre neste modo. Abra o Auto-Vigia pelo navegador e entre por lá.',
+  'auth/operation-not-supported-in-this-environment': 'O login com Google não abre neste modo. Abra o Vigia Auto pelo navegador e entre por lá.',
   'auth/network-request-failed': 'Sem conexão. Tente novamente.',
   'auth/unauthorized-domain': 'Domínio não autorizado no Firebase (Authentication → Settings → Authorized domains).',
   'auth/too-many-requests': 'Muitas tentativas. Aguarde alguns minutos.',
