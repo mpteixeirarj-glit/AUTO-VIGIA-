@@ -1,3 +1,8 @@
+> **⚠ Este app mudou de endereço (27/11/2026).** O Vigia Auto agora mora na pasta `auto/` do repositório
+> [mpteixeirarj-glit.github.io](https://github.com/mpteixeirarj-glit/mpteixeirarj-glit.github.io)
+> → https://mpteixeirarj-glit.github.io/auto/ — com todo o histórico de commits.
+> Aqui ficaram só páginas que redirecionam o endereço antigo (e um service worker que remove o antigo).
+
 # Vigia Auto 🚗 (antigo Auto-Vigia)
 
 Versão atual: **1.2.1** (exibida no app: topo e Mais → Sobre e versões).
